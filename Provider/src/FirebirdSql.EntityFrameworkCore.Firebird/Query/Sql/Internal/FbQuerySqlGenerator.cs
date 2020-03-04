@@ -53,6 +53,37 @@ namespace FirebirdSql.EntityFrameworkCore.Firebird.Query.Sql.Internal
 			}
 		}
 
+		protected override void GenerateIn(InExpression inExpression, bool negated = false)
+		{
+			if (inExpression.Values.Any() && inExpression.Values.First() is ConstantExpression ce && ce.Type == typeof(Guid))
+			{
+				Visit(inExpression.Operand);
+				Sql.Append(negated ? " NOT IN " : " IN ");
+				Sql.Append("(");
+
+				for (var index = 0; index < inExpression.Values.Count; index++)
+				{
+					if (index > 0)
+						Sql.Append(",");
+
+					var constantExpression = (ConstantExpression)inExpression.Values[index];
+
+					Sql.Append("char_to_uuid('");
+
+					var guid = (Guid) constantExpression.Value;
+
+					Sql.Append(guid.ToString("D"));
+					Sql.Append("')");
+				}
+
+				Sql.Append(")");
+			}
+			else
+			{
+				base.GenerateIn(inExpression, negated);
+			}
+		}
+
 		protected override void GenerateLimitOffset(SelectExpression selectExpression)
 		{
 			// handled by GenerateTop
